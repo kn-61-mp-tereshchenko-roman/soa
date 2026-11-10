@@ -1,0 +1,31 @@
+curl -i -X POST http://localhost:8080/api/profiles \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Test User",
+    "daily_calorie_goal": 2200
+  }'
+
+curl -i -X POST http://localhost:8080/api/foods \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Oats",
+    "calories_per_100g": 389,
+    "protein_per_100g": 16.9,
+    "fat_per_100g": 6.9,
+    "carbs_per_100g": 66.3
+  }'
+
+curl -i http://localhost:8080/api/foods
+
+curl -i -X POST http://localhost:8080/api/meals \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": "USER_UUID",
+    "food_id": "FOOD_UUID",
+    "meal_type": "breakfast",
+    "quantity_grams": 80
+  }'
+
+curl -i "http://localhost:8080/api/meals?user_id=USER_UUID"
+
+curl -i "http://localhost:8080/api/analytics/daily?user_id=USER_UUID&summary_date=2026-10-20"

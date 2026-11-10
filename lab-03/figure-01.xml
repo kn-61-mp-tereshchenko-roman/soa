@@ -1,0 +1,64 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Transactional Outbox and SAGA">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="client" value="Клієнт" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="meal" value="Meal Service&#xa;Створення прийому їжі" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="180" width="190" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="db" value="PostgreSQL&#xa;meal_entries&#xa;outbox_events&#xa;saga_instances" style="shape=cylinder;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="480" y="150" width="190" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="publisher" value="Outbox Publisher&#xa;Публікація подій" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="730" y="180" width="170" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="rabbit" value="RabbitMQ&#xa;nutrition.events" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="180" width="170" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="consumer" value="Analytics Consumer&#xa;Перевірка Inbox&#xa;Оновлення аналітики" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="960" y="350" width="190" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="analyticsdb" value="PostgreSQL&#xa;processed_events&#xa;daily_nutrition_summary" style="shape=cylinder;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="340" width="200" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="coordinator" value="SAGA Coordinator&#xa;Тайм-аут і DLQ" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="420" y="500" width="190" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="compensation" value="Meal Service&#xa;Компенсація&#xa;CANCELLED / COMPENSATED" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="500" width="220" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="client" target="meal">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="Одна локальна транзакція" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="meal" target="db">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="Неопубліковані події" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="db" target="publisher">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" value="Публікація" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="publisher" target="rabbit">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="Повідомлення" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="rabbit" target="consumer">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="Локальна транзакція" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="consumer" target="analyticsdb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" value="DLQ / тайм-аут" style="endArrow=block;html=1;rounded=0;dashed=1;" edge="1" parent="1" source="rabbit" target="coordinator">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" value="Компенсація" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="coordinator" target="compensation">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e9" value="Оновлення стану" style="endArrow=block;html=1;rounded=0;" edge="1" parent="1" source="compensation" target="db">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
