@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 psycopg[binary]
 pika
+
+PyJWT[crypto]==2.10.1

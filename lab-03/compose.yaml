@@ -40,6 +40,22 @@ services:
       timeout: 5s
       retries: 10
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2
+    restart: unless-stopped
+    command:
+      - start-dev
+      - --http-port=8080
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    ports:
+      - "127.0.0.1:8082:8080"
+    networks:
+      - backend
+
   profile-service:
     build: ./profile-service
     restart: unless-stopped
@@ -192,6 +208,7 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  keycloak_data:
 
 networks:
   backend:

@@ -3,10 +3,21 @@ from datetime import date
 from uuid import UUID
 
 import psycopg
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.security import require_scope
 
 
 app = FastAPI(title="Nutrition Analytics Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://cad.kpi.ua"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -56,6 +67,7 @@ def get_daily_summary(
     summary_date: date = Query(
         default_factory=date.today,
     ),
+    token: dict = Depends(require_scope("analytics:read")),
 ):
     with get_connection() as conn:
         row = conn.execute(

@@ -3,3 +3,5 @@ uvicorn[standard]
 psycopg[binary]
 httpx
 pika
+
+PyJWT[crypto]==2.10.1

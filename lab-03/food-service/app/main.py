@@ -1,13 +1,23 @@
+import os
 from uuid import UUID, uuid4
 
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-import os
+from app.security import require_scope
 
 
 app = FastAPI(title="Food Catalog Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://cad.kpi.ua"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -65,7 +75,10 @@ def health():
 
 
 @app.post("/api/foods", status_code=201)
-def create_food(data: FoodCreate):
+def create_food(
+    data: FoodCreate,
+    token: dict = Depends(require_scope("foods:write")),
+):
     food_id = uuid4()
 
     with get_connection() as conn:
@@ -98,7 +111,9 @@ def create_food(data: FoodCreate):
 
 
 @app.get("/api/foods")
-def list_foods():
+def list_foods(
+    token: dict = Depends(require_scope("foods:read")),
+):
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -118,7 +133,10 @@ def list_foods():
 
 
 @app.get("/api/foods/{food_id}")
-def get_food(food_id: UUID):
+def get_food(
+    food_id: UUID,
+    token: dict = Depends(require_scope("foods:read")),
+):
     with get_connection() as conn:
         row = conn.execute(
             """

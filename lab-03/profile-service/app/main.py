@@ -2,11 +2,22 @@ import os
 from uuid import uuid4
 
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+from app.security import require_scope
 
 
 app = FastAPI(title="Profile Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://cad.kpi.ua"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 
@@ -44,7 +55,10 @@ def health():
 
 
 @app.post("/api/profiles", status_code=201)
-def create_profile(data: ProfileCreate):
+def create_profile(
+    data: ProfileCreate,
+    token: dict = Depends(require_scope("profiles:write")),
+):
     profile_id = uuid4()
 
     with get_connection() as conn:
@@ -70,9 +84,11 @@ def create_profile(data: ProfileCreate):
 
 
 @app.get("/api/profiles/{profile_id}")
-def get_profile(profile_id: str):
+def get_profile(
+    profile_id: str,
+    token: dict = Depends(require_scope("profiles:read")),
+):
     try:
-        parsed_id = uuid4() if False else profile_id
         with get_connection() as conn:
             row = conn.execute(
                 """
@@ -80,7 +96,7 @@ def get_profile(profile_id: str):
                 FROM user_profiles
                 WHERE id = %s
                 """,
-                (parsed_id,),
+                (profile_id,),
             ).fetchone()
 
     except psycopg.Error as exc:

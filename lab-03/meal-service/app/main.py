@@ -4,12 +4,24 @@ from uuid import UUID, uuid4
 
 import httpx
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from psycopg.types.json import Jsonb
 
+from app.security import bearer_scheme, require_scope, require_scopes
+
 
 app = FastAPI(title="Meal Service")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://cad.kpi.ua"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 
 DATABASE_URL = os.environ["DATABASE_URL"]
 PROFILE_SERVICE_URL = os.environ["PROFILE_SERVICE_URL"]
@@ -47,7 +59,6 @@ def initialize_database():
             """
         )
 
-        # Migration for databases created during Lab 2.
         conn.execute(
             """
             ALTER TABLE meal_entries
@@ -100,9 +111,17 @@ class MealCreate(BaseModel):
     quantity_grams: float = Field(gt=0, le=10000)
 
 
-def request_remote_json(url: str, unavailable_message: str):
+def request_remote_json(
+    url: str,
+    unavailable_message: str,
+    authorization: str,
+):
     try:
-        response = httpx.get(url, timeout=3.0)
+        response = httpx.get(
+            url,
+            headers={"Authorization": authorization},
+            timeout=3.0,
+        )
 
     except httpx.RequestError as exc:
         raise HTTPException(
@@ -143,7 +162,17 @@ def get_instance():
 
 
 @app.post("/api/meals", status_code=201)
-def create_meal(data: MealCreate):
+def create_meal(
+    data: MealCreate,
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    token: dict = Depends(
+        require_scopes(
+            "meals:write",
+            "profiles:read",
+            "foods:read",
+        )
+    ),
+):
     if data.meal_type not in {
         "breakfast",
         "lunch",
@@ -155,14 +184,20 @@ def create_meal(data: MealCreate):
             detail="Unsupported meal type",
         )
 
+    authorization = (
+        f"{credentials.scheme} {credentials.credentials}"
+    )
+
     request_remote_json(
         f"{PROFILE_SERVICE_URL}/api/profiles/{data.user_id}",
         "Profile Service is unavailable",
+        authorization,
     )
 
     food = request_remote_json(
         f"{FOOD_SERVICE_URL}/api/foods/{data.food_id}",
         "Food Catalog Service is unavailable",
+        authorization,
     )
 
     factor = data.quantity_grams / 100.0
@@ -218,8 +253,6 @@ def create_meal(data: MealCreate):
     }
 
     try:
-        # Business record, Outbox event and SAGA state are committed
-        # together in one PostgreSQL transaction.
         with get_connection() as conn:
             conn.execute(
                 """
@@ -229,8 +262,8 @@ def create_meal(data: MealCreate):
                     consumed_at, status
                 )
                 VALUES (
-                    %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, 'PENDING'
+                    %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, 'PENDING'
                 )
                 """,
                 (
@@ -301,7 +334,10 @@ def create_meal(data: MealCreate):
 
 
 @app.get("/api/meals")
-def list_meals(user_id: UUID):
+def list_meals(
+    user_id: UUID,
+    token: dict = Depends(require_scope("meals:read")),
+):
     with get_connection() as conn:
         rows = conn.execute(
             """
@@ -336,7 +372,10 @@ def list_meals(user_id: UUID):
 
 
 @app.get("/api/meals/{meal_id}")
-def get_meal(meal_id: UUID):
+def get_meal(
+    meal_id: UUID,
+    token: dict = Depends(require_scope("meals:read")),
+):
     with get_connection() as conn:
         row = conn.execute(
             """
@@ -363,8 +402,7 @@ def get_meal(meal_id: UUID):
         "food_name": row[3],
         "meal_type": row[4],
         "quantity_grams": row[5],
-        "calories": row[6],
-        "protein": row[7],
+        "calories": row[7],
         "fat": row[8],
         "carbs": row[9],
         "consumed_at": row[10].isoformat(),
